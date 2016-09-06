@@ -1,10 +1,6 @@
 
 package com.eazzyapps.webrtcclient;
 
-import org.webrtc.MediaConstraints;
-import org.webrtc.PeerConnection;
-import java.util.List;
-
 /**
  * Created by Александр on 11.07.2016.
  */
@@ -13,7 +9,7 @@ public class EAPeerConnectionClient {
 
     SignalingServer messenger;
     EASignalingParams params;
-    MediaStreamsObserver streamsObserver;
+    MediaStreamsHandler streamsHandler;
 
     private static EAPeerConnectionClient ourInstance = new EAPeerConnectionClient();
 
@@ -26,9 +22,13 @@ public class EAPeerConnectionClient {
 
     public EAPeerConnection createPeerConnection(String peerId) {
 
-        if (params != null && messenger != null && streamsObserver != null) {
+        if (params != null && messenger != null && streamsHandler != null) {
 
-            return new EAPeerConnection(peerId, params.iceServers, params.pcConstraints, messenger, streamsObserver);
+            EAPeerConnection pc = new EAPeerConnection(peerId, params.iceServers,
+                    params.pcConstraints, messenger, streamsHandler);
+            pc.addStream(streamsHandler.getLocalMediaStream());
+
+            return pc;
         }
         return null;
     }
@@ -45,7 +45,7 @@ public class EAPeerConnectionClient {
         this.params = params;
     }
 
-    public void setStreamsObserver(MediaStreamsObserver streamsObserver) {
-        this.streamsObserver = streamsObserver;
+    public void setStreamsHandler(MediaStreamsHandler streamsHandler) {
+        this.streamsHandler = streamsHandler;
     }
 }

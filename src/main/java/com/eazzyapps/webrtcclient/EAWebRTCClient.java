@@ -6,7 +6,6 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.webrtc.IceCandidate;
-import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SessionDescription;
 
 import java.net.MalformedURLException;
@@ -28,15 +27,14 @@ public class EAWebRTCClient {
 
     private int maxPeersNum;
     private EAClientListener listener;
-    HashMap<String, EAPeer> peers;
-    EAPeer me;
-    String userName;
-    String userId;
-    EASignalingParams signalingParams;
-    SignalingServer server;
-    boolean connected;
+    private HashMap<String, EAPeer> peers;
+    private EAPeer me;
+    private String userName;
+    private String userId;
+    private EASignalingParams signalingParams;
+    private SignalingServer server;
+    private boolean connected;
 
-    private PeerConnectionFactory pcFactory;
     private MediaStreamsHandler streamsHandler;
     private EAPeerConnectionClient pcClient;
 
@@ -45,12 +43,11 @@ public class EAWebRTCClient {
         this.connected = false;
         this.userName = userName;
         try {
-            this.server = new SignalingServer(Constants.localServerURL_2);
+            this.server = new SignalingServer(Constants.localServerURL);
         } catch (MalformedURLException e) {
             this.server = null;
         }
         this.peers = new HashMap<>();
-        this.pcFactory = new PeerConnectionFactory();
         this.pcClient = EAPeerConnectionClient.getInstance();
         // sets default maximum peers number
         this.maxPeersNum = 4;
@@ -61,9 +58,9 @@ public class EAWebRTCClient {
         this.listener = listener;
     }
 
-    Subscription wsSubscription;
+    private Subscription wsSubscription;
 
-    Subscriber<EAMessage> wsSubscriber = new Subscriber<EAMessage>() {
+    private Subscriber<EAMessage> wsSubscriber = new Subscriber<EAMessage>() {
 
         @Override
         public void onNext(EAMessage message) {
@@ -74,9 +71,6 @@ public class EAWebRTCClient {
                 case TYPE_OPEN:
 
                     connected = true;
-                    if (listener != null)
-                        listener.onConnected();
-                    Log.d(Constants.TAG, "webSocket on");
 
                     // new peer in map - device user himself
                     me = new EAPeer(userId, userName);
@@ -84,6 +78,10 @@ public class EAWebRTCClient {
                     peers.put(userId, me);
 
                     discoverPeers();
+
+                    if (listener != null)
+                        listener.onConnected();
+                    Log.d(Constants.TAG, "webSocket on");
 
                     return;
 
@@ -107,10 +105,6 @@ public class EAWebRTCClient {
                             Log.d(Constants.TAG, "CANDIDATE: " + e.getMessage());
                         }
                     }
-                    return;
-
-                case TYPE_LEAVE:
-
                     return;
 
                 case TYPE_OFFER:
@@ -166,15 +160,21 @@ public class EAWebRTCClient {
                     }
                     return;
 
+
+                case TYPE_LEAVE:
+
+                    listener.onPeerLeave(peers.get(message.source));
+                    peers.remove(message.source);
+
+                    return;
+
                 case TYPE_NEW_USER:
 
-                    EAPeerConnection pc = pcClient.createPeerConnection(message.source);
-                    pc.addStream(streamsHandler.getLocalMediaStream());
+                    peers.put(message.source,
+                            new EAPeer(message.source, message.payload));
 
-                    EAPeer peer = new EAPeer(message.source, message.payload);
-                    peer.setPeerConnection(pc);
+                    listener.onNewPeer();
 
-                    peers.put(message.source, peer);
                     Log.d(Constants.TAG, "new peer with id: " + message.source);
             }
         }
@@ -192,22 +192,6 @@ public class EAWebRTCClient {
         }
     };
 
-
-    public void onPause() {
-        if (streamsHandler != null)
-            streamsHandler.onPause();
-    }
-
-    public void onResume() {
-        if (streamsHandler != null)
-            streamsHandler.onResume();
-    }
-
-    public void onDestroy() {
-        if (wsSubscription != null)
-            wsSubscription.unsubscribe();
-    }
-
     public void init(GLSurfaceView glSurfaceView) {
 
         // params with default values to be available for MediaStreamHandler
@@ -216,7 +200,7 @@ public class EAWebRTCClient {
 
         if (glSurfaceView != null) {
             this.streamsHandler = new MediaStreamsHandler(glSurfaceView, maxPeersNum);
-            pcClient.setStreamsObserver(streamsHandler);
+            pcClient.setStreamsHandler(streamsHandler);
         }
 
         // if signaling server not valid stop execution here
@@ -255,29 +239,40 @@ public class EAWebRTCClient {
         server.discoverPeers()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(peersOnline -> {
-
-                            EAPeerConnection pc;
-                            EAPeer peer;
+                .subscribe(
+                        peersOnline -> {
 
                             for (String p : peersOnline) {
+
                                 String name = p.split("_")[0];
                                 String id = p.split("_")[1];
 
-                                pc = pcClient.createPeerConnection(id);
-                                pc.addStream(streamsHandler.getLocalMediaStream());
-
-                                peer = new EAPeer(id, name);
-                                peer.setPeerConnection(pc);
-
-                                peers.put(id, peer);
+                                peers.put(id, new EAPeer(id, name));
                             }
 
+                            //TODO consider whether remove or leave Me in peers
                             peers.remove(me.getUserId());
+
                             if (listener != null)
                                 listener.onPeersDiscovered(peers);
                         },
-                        throwable -> listener.onError(throwable.getMessage()));
+                        throwable -> listener.onError(throwable.getMessage())
+                );
+    }
+
+    public void onPause() {
+        if (streamsHandler != null)
+            streamsHandler.onPause();
+    }
+
+    public void onResume() {
+        if (streamsHandler != null)
+            streamsHandler.onResume();
+    }
+
+    public void onDestroy() {
+        if (wsSubscription != null)
+            wsSubscription.unsubscribe();
     }
 
     public HashMap<String, EAPeer> getPeers() {

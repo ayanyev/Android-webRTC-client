@@ -13,6 +13,7 @@ public interface EAClientListener {
     void onConnectionError(String msg);
     void onPeersDiscovered(HashMap<String, EAPeer> peers);
     void onNewPeer();
+    void onPeerLeave(EAPeer peer);
     void onError(String e);
 
 }
