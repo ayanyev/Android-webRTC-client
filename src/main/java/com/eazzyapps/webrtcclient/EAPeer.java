@@ -6,7 +6,7 @@ import org.webrtc.SessionDescription;
 /**
  * Created by Александр on 11.07.2016.
  */
-public class EAPeer{
+public class EAPeer {
 
     private String userId;
     private String userName;
@@ -14,7 +14,7 @@ public class EAPeer{
     private boolean connected;
     private boolean myself;
 
-    public EAPeer(String userId, String userName) {
+    public EAPeer(String userId, String userName)  {
 
         this.userId = userId;
         this.userName = userName;
@@ -66,5 +66,4 @@ public class EAPeer{
     public void setMyself(boolean myself) {
         this.myself = myself;
     }
-
 }

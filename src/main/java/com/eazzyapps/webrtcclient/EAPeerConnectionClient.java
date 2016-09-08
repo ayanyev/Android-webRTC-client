@@ -26,7 +26,7 @@ public class EAPeerConnectionClient {
 
             EAPeerConnection pc = new EAPeerConnection(peerId, params.iceServers,
                     params.pcConstraints, messenger, streamsHandler);
-            pc.addStream(streamsHandler.getLocalMediaStream());
+            pc.addStream(streamsHandler.getLocalStream());
 
             return pc;
         }

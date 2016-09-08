@@ -14,13 +14,16 @@ import org.webrtc.VideoRendererGui;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+
+import rx.Observable;
+import rx.Subscriber;
 
 /**
  * Created by Александр on 27.08.2016.
  */
-public class MediaStreamsHandler implements MediaStreamsObserver {
+
+public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.PeersEvents {
 
     public static final String VIDEO_TRACK_ID = "video";
     public static final String AUDIO_TRACK_ID = "audio";
@@ -28,108 +31,134 @@ public class MediaStreamsHandler implements MediaStreamsObserver {
 
     private GLSurfaceView glSurfaceView;
     private VideoSource localVideoSource;
-    private VideoRenderer.Callbacks localRender, remoteRenderSelected;
-    private List<VideoRenderer.Callbacks> remoteRendersSmall;
+    private HashMap<String, VideoRenderer.Callbacks> remoteRenders;
     private PeerConnectionFactory pcFactory;
-    private MediaStream localMediaStream;
-    private int maxPeersNum;
+    private MediaStream localStream;
 
     public MediaStreamsHandler(GLSurfaceView glSurfaceView, int peersNum) {
 
         this.glSurfaceView = glSurfaceView;
-        this.maxPeersNum = peersNum;
         this.pcFactory = new PeerConnectionFactory();
+        this.remoteRenders = new HashMap<>();
+
         init();
     }
 
     public void init() {
 
+        if (glSurfaceView == null)
+            throw new NullPointerException();
+
+        // Then we set that view, and pass a Runnable to run once the surface is ready
+        VideoRendererGui.setView(glSurfaceView, null);
         createLocalMediaStream();
-        createImageRenderers();
-    }
-
-    private void createImageRenderers() {
-
-        if (glSurfaceView != null) {
-            // Then we set that view, and pass a Runnable to run once the surface is ready
-            VideoRendererGui.setView(glSurfaceView, null);
-
-            // Now that VideoRendererGui is ready, we can get our VideoRenderer.
-            // IN THIS ORDER. Effects which is on top or bottom
-
-            remoteRendersSmall = new ArrayList<>();
-            int pos = 0;
-            int s = 100 / maxPeersNum;
-
-            localRender = VideoRendererGui.create(20, 20, 30, 30, VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, true);
-
-            if (localMediaStream.videoTracks.size() != 0)
-                localMediaStream.videoTracks.get(0).addRenderer(new VideoRenderer(localRender));
-
-            remoteRenderSelected = VideoRendererGui.create(60, 20, 30, 30, VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, true);
-
-            for (int i = 0; i < maxPeersNum - 1; i++) {
-                remoteRendersSmall.add(i, VideoRendererGui.create(60, pos + 3, s - 6, s - 6,
-                        VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, false));
-                pos = pos + s;
-            }
-        }
-
-        if (localMediaStream.videoTracks.size() == 0) return;
-        localMediaStream.videoTracks.get(0).addRenderer(new VideoRenderer(localRender));
     }
 
     private void createLocalMediaStream() {
 
-        EAPeerConnectionClient pcClient = EAPeerConnectionClient.getInstance();
-        MediaConstraints videoConstraints = pcClient.params.videoConstraints;
-        MediaConstraints audioConstraints = pcClient.params.audioConstraints;
+            EAPeerConnectionClient pcClient = EAPeerConnectionClient.getInstance();
+            MediaConstraints videoConstraints = pcClient.params.videoConstraints;
+            MediaConstraints audioConstraints = pcClient.params.audioConstraints;
 
-        // Returns the number of cams & front/back face device name
-        int camNumber = VideoCapturerAndroid.getDeviceCount();
-        String frontFacingCam = VideoCapturerAndroid.getNameOfFrontFacingDevice();
-        String backFacingCam = VideoCapturerAndroid.getNameOfBackFacingDevice();
+            // Returns the number of cams & front/back face device name
+            int camNumber = VideoCapturerAndroid.getDeviceCount();
+            String frontFacingCam = VideoCapturerAndroid.getNameOfFrontFacingDevice();
+            String backFacingCam = VideoCapturerAndroid.getNameOfBackFacingDevice();
 
-        // Creates a VideoCapturerAndroid instance for the device name
-        VideoCapturerAndroid capturer = (VideoCapturerAndroid) VideoCapturerAndroid.create(frontFacingCam);
+            // Creates a VideoCapturerAndroid instance for the device name
+            VideoCapturerAndroid capturer = (VideoCapturerAndroid) VideoCapturerAndroid.create(frontFacingCam);
 
-        // First create a Video Source, then we can make a Video Track
-        localVideoSource = pcFactory.createVideoSource(capturer, videoConstraints);
-        VideoTrack localVideoTrack = pcFactory.createVideoTrack(VIDEO_TRACK_ID, localVideoSource);
+            // First create a Video Source, then we can make a Video Track
+            localVideoSource = pcFactory.createVideoSource(capturer, videoConstraints);
+            VideoTrack localVideoTrack = pcFactory.createVideoTrack(VIDEO_TRACK_ID, localVideoSource);
 
-        // First we create an AudioSource then we can create our AudioTrack
-        AudioSource audioSource = pcFactory.createAudioSource(audioConstraints);
-        AudioTrack localAudioTrack = pcFactory.createAudioTrack(AUDIO_TRACK_ID, audioSource);
+            // First we create an AudioSource then we can create our AudioTrack
+            AudioSource audioSource = pcFactory.createAudioSource(audioConstraints);
+            AudioTrack localAudioTrack = pcFactory.createAudioTrack(AUDIO_TRACK_ID, audioSource);
 
-        localMediaStream = pcFactory.createLocalMediaStream(LOCAL_MEDIA_STREAM_ID);
-        Log.d(Constants.TAG, "local media stream created");
+            localStream = pcFactory.createLocalMediaStream(LOCAL_MEDIA_STREAM_ID);
+            Log.d(Constants.TAG, "local media stream created");
 
-        // Now we can add our tracks.
-        localMediaStream.addTrack(localVideoTrack);
-        localMediaStream.addTrack(localAudioTrack);
+            // Now we can add our tracks.
+            localStream.addTrack(localVideoTrack);
+            localStream.addTrack(localAudioTrack);
     }
 
-    public MediaStream getLocalMediaStream() {
-        return localMediaStream;
+    public MediaStream getLocalStream() {
+        return localStream;
     }
 
     @Override
-    public void onAddStream(MediaStream mediaStream) {
+    public void onAddStream(String userId, MediaStream mediaStream) {
 
         try {
             if (mediaStream.videoTracks.size() == 0) return;
-            mediaStream.videoTracks.get(0).addRenderer(new VideoRenderer(remoteRenderSelected));
+            mediaStream.videoTracks.get(0).addRenderer(new VideoRenderer(remoteRenders.get(userId)));
 //            VideoRendererGui.update(remoteRenderSelected, 0, 0, 100, 100, VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, false);
 //            VideoRendererGui.update(localRender, 72, 72, 25, 25, VideoRendererGui.ScalingType.SCALE_ASPECT_FIT, true);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
+        Log.d(Constants.TAG, "renderer added to mediaStream for peer: " + userId);
     }
 
     @Override
-    public void onRemoveStream(MediaStream mediaStream) {
+    public void onRemoveStream(String userId, MediaStream mediaStream) {
 
+        //TODO consider use cases
+
+    }
+
+    @Override
+    public void onPeerAdded(EAPeer peer) {
+
+        createImageRenderer(peer);
+    }
+
+    private void addRendererToLocalStream(VideoRenderer.Callbacks renderer) {
+
+        if (localStream.videoTracks.size() != 0)
+            localStream.videoTracks.get(0).addRenderer(new VideoRenderer(renderer));
+
+        Log.d(Constants.TAG, "local renderer is created and added to local media stream");
+    }
+
+    private void createImageRenderer(EAPeer peer) {
+
+        // Now that VideoRendererGui is ready, we can get our VideoRenderer.
+        // IN THIS ORDER. Effects which is on top or bottom
+
+        VideoRenderer.Callbacks renderer = null;
+
+        if (remoteRenders.size() == 0) {
+            renderer = VideoRendererGui.create(15, 15, 30, 30,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, true);
+        } else if (remoteRenders.size() == 1) {
+            renderer = VideoRendererGui.create(55, 15, 30, 30,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, false);
+        } else if (remoteRenders.size() == 2) {
+            renderer = VideoRendererGui.create(15, 55, 30, 30,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, false);
+        }
+        if (remoteRenders.size() == 3) {
+            renderer = VideoRendererGui.create(55, 55, 30, 30,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, false);
+        }
+        remoteRenders.put(peer.getUserId(), renderer);
+
+        //starts showing local media stream
+        if (peer.isMyself())
+            addRendererToLocalStream(renderer);
+
+        Log.d(Constants.TAG, "renderer is created for peer: " + peer.getUserId());
+    }
+
+
+    @Override
+    public void onPeerRemoved(EAPeer peer) {
+
+        remoteRenders.remove(peer.getUserId());
     }
 
     public void onPause() {
@@ -141,4 +170,5 @@ public class MediaStreamsHandler implements MediaStreamsObserver {
         glSurfaceView.onResume();
         localVideoSource.restart();
     }
+
 }

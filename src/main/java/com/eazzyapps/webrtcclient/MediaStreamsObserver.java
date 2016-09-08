@@ -7,6 +7,8 @@ import org.webrtc.MediaStream;
  */
 public interface MediaStreamsObserver {
 
-    void onAddStream(MediaStream mediaStream);
-    void onRemoveStream(MediaStream mediaStream);
+    void onAddStream(String userId, MediaStream mediaStream);
+    void onRemoveStream(String userId, MediaStream mediaStream);
+
+
 }

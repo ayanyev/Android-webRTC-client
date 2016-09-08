@@ -27,7 +27,7 @@ public class EAWebRTCClient {
 
     private int maxPeersNum;
     private EAClientListener listener;
-    private HashMap<String, EAPeer> peers;
+    private PeersHashMap peers;
     private EAPeer me;
     private String userName;
     private String userId;
@@ -43,11 +43,10 @@ public class EAWebRTCClient {
         this.connected = false;
         this.userName = userName;
         try {
-            this.server = new SignalingServer(Constants.localServerURL);
+            this.server = new SignalingServer(Constants.localServerURL_2);
         } catch (MalformedURLException e) {
             this.server = null;
         }
-        this.peers = new HashMap<>();
         this.pcClient = EAPeerConnectionClient.getInstance();
         // sets default maximum peers number
         this.maxPeersNum = 4;
@@ -61,6 +60,7 @@ public class EAWebRTCClient {
     private Subscription wsSubscription;
 
     private Subscriber<EAMessage> wsSubscriber = new Subscriber<EAMessage>() {
+
 
         @Override
         public void onNext(EAMessage message) {
@@ -203,6 +203,8 @@ public class EAWebRTCClient {
             pcClient.setStreamsHandler(streamsHandler);
         }
 
+        this.peers = new PeersHashMap(streamsHandler);
+
         // if signaling server not valid stop execution here
         if (server == null) {
             if (listener != null)
@@ -247,11 +249,9 @@ public class EAWebRTCClient {
                                 String name = p.split("_")[0];
                                 String id = p.split("_")[1];
 
-                                peers.put(id, new EAPeer(id, name));
+                                if (!id.equals(me.getUserId()))
+                                    peers.put(id, new EAPeer(id, name));
                             }
-
-                            //TODO consider whether remove or leave Me in peers
-                            peers.remove(me.getUserId());
 
                             if (listener != null)
                                 listener.onPeersDiscovered(peers);

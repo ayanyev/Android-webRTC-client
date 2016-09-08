@@ -103,13 +103,13 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     public void onAddStream(MediaStream mediaStream) {
 
         Log.d(Constants.TAG, "got remote stream");
-        observer.onAddStream(mediaStream);
+        observer.onAddStream(peerId, mediaStream);
     }
 
     @Override
     public void onRemoveStream(MediaStream mediaStream) {
 
-        observer.onRemoveStream(mediaStream);
+        observer.onRemoveStream(peerId, mediaStream);
     }
 
     @Override
@@ -161,5 +161,4 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     public void onSetFailure(String s) {
 
     }
-
 }
