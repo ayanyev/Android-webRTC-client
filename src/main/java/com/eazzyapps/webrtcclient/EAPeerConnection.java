@@ -23,16 +23,16 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     PeerConnectionFactory pcFactory;
     PeerConnection pc;
     SignalingServer messenger;
-    String peerId;
+    EAPeer peer;
     MediaConstraints constraints;
     MediaStreamsObserver observer;
 
-    public EAPeerConnection(String id,
+    public EAPeerConnection(EAPeer peer,
                             List<PeerConnection.IceServer> servers,
                             MediaConstraints constraints,
                             SignalingServer messenger,
                             MediaStreamsObserver observer) {
-        this.peerId = id;
+        this.peer = peer;
         this.pcFactory = new PeerConnectionFactory();
         this.pc = pcFactory.createPeerConnection(servers, constraints, this);
         this.messenger = messenger;
@@ -93,7 +93,7 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
             payload.put("sdpMid", iceCandidate.sdpMid);
             payload.put("sdpMLineIndex", iceCandidate.sdpMLineIndex);
             payload.put("sdp", iceCandidate.sdp);
-            messenger.sendMsg(new EAMessage(EAMessage.TYPE_CANDIDATE, peerId, payload));
+            messenger.sendMsg(new EAMessage(EAMessage.TYPE_CANDIDATE, peer.getUserId(), payload));
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -103,13 +103,13 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     public void onAddStream(MediaStream mediaStream) {
 
         Log.d(Constants.TAG, "got remote stream");
-        observer.onAddStream(peerId, mediaStream);
+        observer.onAddStream(peer, mediaStream);
     }
 
     @Override
     public void onRemoveStream(MediaStream mediaStream) {
 
-        observer.onRemoveStream(peerId, mediaStream);
+        observer.onRemoveStream(peer.getUserId(), mediaStream);
     }
 
     @Override
@@ -141,7 +141,7 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
         try {
             payload.put("type", sdp.type.canonicalForm());
             payload.put("sdp", sdp.description);
-            messenger.sendMsg(new EAMessage(msgType, peerId, payload));
+            messenger.sendMsg(new EAMessage(msgType, peer.getUserId(), payload));
         } catch (JSONException e) {
             e.printStackTrace();
         }

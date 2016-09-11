@@ -7,7 +7,7 @@ import org.webrtc.MediaStream;
  */
 public interface MediaStreamsObserver {
 
-    void onAddStream(String userId, MediaStream mediaStream);
+    void onAddStream(EAPeer peer, MediaStream mediaStream);
     void onRemoveStream(String userId, MediaStream mediaStream);
 
 

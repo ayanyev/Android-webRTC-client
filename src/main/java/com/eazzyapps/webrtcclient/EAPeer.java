@@ -20,7 +20,7 @@ public class EAPeer {
         this.userName = userName;
         this.myself = false;
         this.connected = false;
-        this.pc = EAPeerConnectionClient.getInstance().createPeerConnection(userId);
+        this.pc = EAPeerConnectionClient.getInstance().createPeerConnection(this);
     }
 
     public EAPeerConnection getPeerConnection() {

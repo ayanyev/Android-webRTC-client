@@ -20,11 +20,11 @@ public class EAPeerConnectionClient {
     private EAPeerConnectionClient() {
     }
 
-    public EAPeerConnection createPeerConnection(String peerId) {
+    public EAPeerConnection createPeerConnection(EAPeer peer) {
 
         if (params != null && messenger != null && streamsHandler != null) {
 
-            EAPeerConnection pc = new EAPeerConnection(peerId, params.iceServers,
+            EAPeerConnection pc = new EAPeerConnection(peer, params.iceServers,
                     params.pcConstraints, messenger, streamsHandler);
             pc.addStream(streamsHandler.getLocalStream());
 
