@@ -108,7 +108,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         return localStream;
     }
 
-    private PeerView createPeerView(int left, int top, int width, int height) {
+    private PeerView createPeerView(EAPeer peer, int left, int top, int width, int height) {
 
         glWidth = glSurfaceView.getMeasuredWidth();
         glHeight = glSurfaceView.getMeasuredHeight();
@@ -131,7 +131,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 //        displayLayout.inset((this.displayLayout.width() - displaySize.x) / 2, (this.displayLayout.height() - displaySize.y) / 2);
 
 
-        PeerView peerView = new PeerView(glSurfaceView.getContext());
+        PeerView peerView = new PeerView(glSurfaceView.getContext(), peer);
 
         RelativeLayout.LayoutParams params =
                 new RelativeLayout.LayoutParams(
@@ -154,8 +154,8 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
         try {
             if (mediaStream.videoTracks.size() == 0) return;
+            peerView.setImageLevel(0);
             mediaStream.videoTracks.get(0).addRenderer(renderer);
-            mRoot.addView(peerView);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -176,6 +176,17 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         createImageRenderer(peer);
     }
 
+    @Override
+    public void onPeerRemoved(EAPeer peer) {
+
+        String id = peer.getUserId();
+
+        remoteRenders.remove(id);
+        PeerView peerView = peerViews.get(id);
+        mRoot.removeView(peerView);
+        peerViews.remove(id);
+    }
+
     private void addRendererToLocalStream(VideoRenderer.Callbacks renderer) {
 
         if (localStream.videoTracks.size() != 0)
@@ -185,9 +196,6 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     }
 
     private void createImageRenderer(EAPeer peer) {
-
-        // Now that VideoRendererGui is ready, we can get our VideoRenderer.
-        // IN THIS ORDER. Effects which is on top or bottom
 
         VideoRenderer.Callbacks renderer;
         PeerView peerView;
@@ -220,26 +228,18 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         renderer = VideoRendererGui.create(x, y, w, h,
                 VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, true);
 
-        peerView = createPeerView(x, y, w, h);
+        peerView = createPeerView(peer, x, y, w, h);
         peerView.setPeerName(peer.isMyself() ? "me" : peer.getUserName());
 
         remoteRenders.put(peer.getUserId(), renderer);
         peerViews.put(peer.getUserId(), peerView);
 
+        mRoot.addView(peerView);
         //starts showing local media stream
-        if (peer.isMyself()) {
-            mRoot.addView(peerView);
+        if (peer.isMyself())
             addRendererToLocalStream(renderer);
-        }
 
         Log.d(Constants.TAG, "renderer is created for peer: " + peer.getUserId());
-    }
-
-
-    @Override
-    public void onPeerRemoved(EAPeer peer) {
-
-        remoteRenders.remove(peer.getUserId());
     }
 
     public void onPause() {

@@ -13,7 +13,6 @@ public class PeersHashMap extends HashMap<String, EAPeer> {
         super();
         this.observer = observer;
     }
-
     public interface PeersEvents {
         void onPeerAdded(EAPeer value);
         void onPeerRemoved(EAPeer value);

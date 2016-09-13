@@ -7,10 +7,17 @@
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/imageView"
-        android:layout_centerVertical="true"
-        android:layout_centerHorizontal="true"
-        android:background="@drawable/peer_frame" />
+        android:id="@+id/frame"
+        android:src="@drawable/peer_level_frame" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/display"
+        android:layout_alignParentStart="false"
+        android:layout_centerInParent="true"
+        android:baselineAlignBottom="true"
+        android:src="@drawable/peer_levels" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -19,11 +26,11 @@
         android:text="Peer"
         android:id="@+id/peer_name"
         android:background="@drawable/user_name_frame"
-        android:layout_alignTop="@+id/imageView"
-        android:layout_alignEnd="@+id/imageView"
         android:padding="5dp"
         android:minWidth="100dp"
         android:textAlignment="center"
-        android:textColor="@android:color/holo_blue_dark" />
+        android:textColor="@android:color/holo_blue_dark"
+        android:layout_alignTop="@+id/frame"
+        android:layout_alignParentEnd="true" />
 
 </RelativeLayout>
