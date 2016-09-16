@@ -15,6 +15,8 @@ import org.webrtc.SessionDescription;
 
 import java.util.List;
 
+import rx.Observable;
+
 /**
  * Created by Александр on 25.08.2016.
  */
@@ -49,7 +51,12 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     }
 
     protected void createOffer() {
-        pc.createOffer(this, constraints);
+
+        final SdpObserver observer = this;
+        pc.createOffer(observer, constraints);
+
+       Log.d(Constants.TAG, "create offer called on thread: " + Thread.currentThread().getName());
+
     }
 
     protected void createAnswer() {
@@ -59,6 +66,7 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     public void setRemoteDescription(SessionDescription remoteSdp) {
 
         pc.setRemoteDescription(this, remoteSdp);
+        Log.d(Constants.TAG, "set remote desc called on thread: " + Thread.currentThread().getName());
 
         if (remoteSdp.type == SessionDescription.Type.OFFER)
             pc.createAnswer(this, constraints);
@@ -87,7 +95,7 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     @Override
     public void onIceCandidate(IceCandidate iceCandidate) {
 
-        Log.d(Constants.TAG, "got ICE candidate");
+        Log.d(Constants.TAG, "got ICE candidate on thread: " + Thread.currentThread().getName());
         JSONObject payload = new JSONObject();
         try {
             payload.put("sdpMid", iceCandidate.sdpMid);
@@ -126,6 +134,7 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     public void onCreateSuccess(SessionDescription sdp) {
 
         pc.setLocalDescription(this, sdp);
+        Log.d(Constants.TAG, "set local desc called on thread: " + Thread.currentThread().getName());
 
         String msgType;
 
@@ -148,9 +157,7 @@ public class EAPeerConnection implements PeerConnection.Observer, SdpObserver {
     }
 
     @Override
-    public void onSetSuccess() {
-
-    }
+    public void onSetSuccess() {    }
 
     @Override
     public void onCreateFailure(String s) {

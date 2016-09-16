@@ -1,5 +1,7 @@
 package com.eazzyapps.webrtcclient;
 
+import android.content.Context;
+
 import org.webrtc.MediaStream;
 
 import java.util.HashMap;
@@ -15,5 +17,6 @@ public interface EAClientListener {
     void onNewPeer();
     void onPeerLeave(EAPeer peer);
     void onError(String e);
+    Context getListenerContext();
 
 }

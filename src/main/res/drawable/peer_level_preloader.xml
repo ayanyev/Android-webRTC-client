@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <rotate
-            android:drawable="@drawable/preloader"
-            android:pivotX="50%"
-            android:pivotY="50%" >
-        </rotate>
-    </item>
-</layer-list>
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+    android:drawable="@drawable/progress"
+    android:duration="100" />
+    <item
+        android:drawable="@drawable/progress30"
+        android:duration="100" />
+    <item
+        android:drawable="@drawable/progress60"
+        android:duration="100" />
+</animation-list>

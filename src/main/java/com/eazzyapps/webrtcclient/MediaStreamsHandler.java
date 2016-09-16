@@ -23,8 +23,10 @@ import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL;
 import javax.microedition.khronos.opengles.GL10;
 
 import rx.Observable;
@@ -34,7 +36,7 @@ import rx.Subscriber;
  * Created by Александр on 27.08.2016.
  */
 
-public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.PeersEvents, GLSurfaceView.Renderer {
+public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.PeersEvents {
 
     public static final String VIDEO_TRACK_ID = "video";
     public static final String AUDIO_TRACK_ID = "audio";
@@ -52,29 +54,32 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     private int glWidth;
     private int glHeight;
 
-    public MediaStreamsHandler(GLSurfaceView glSurfaceView, int peersNum) {
+    public MediaStreamsHandler() {
 
-        this.glSurfaceView = glSurfaceView;
         this.pcFactory = new PeerConnectionFactory();
         this.remoteRenders = new HashMap<>();
         this.peerViews = new HashMap<>();
 
-        init();
     }
 
-    public void init() {
+    public void swapGLSurfaceView(GLSurfaceView glSurfaceView, PeersHashMap peers) {
 
-        if (glSurfaceView == null)
-            throw new NullPointerException();
+        this.glSurfaceView = glSurfaceView;
 
-        mRoot = (ViewGroup) glSurfaceView.getParent();
+        VideoRendererGui.setView(glSurfaceView,
+                () -> {
 
-        // Then we set that view, and pass a Runnable to run once the surface is ready
-        VideoRendererGui.setView(glSurfaceView, null);
-        createLocalMediaStream();
+                    remoteRenders.clear();
+                    peerViews.clear();
+                    mRoot = (ViewGroup) glSurfaceView.getParent();
+
+                    if (peers.size() > 0)
+                        for (EAPeer peer : peers.values())
+                            createImageRenderer(peer);
+                });
     }
 
-    private void createLocalMediaStream() {
+    public void createLocalMediaStream() {
 
         EAPeerConnectionClient pcClient = EAPeerConnectionClient.getInstance();
         MediaConstraints videoConstraints = pcClient.params.videoConstraints;
@@ -97,11 +102,12 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         AudioTrack localAudioTrack = pcFactory.createAudioTrack(AUDIO_TRACK_ID, audioSource);
 
         localStream = pcFactory.createLocalMediaStream(LOCAL_MEDIA_STREAM_ID);
-        Log.d(Constants.TAG, "local media stream created");
 
         // Now we can add our tracks.
         localStream.addTrack(localVideoTrack);
         localStream.addTrack(localAudioTrack);
+
+        Log.d(Constants.TAG, "local stream created on thread: " + Thread.currentThread().getName());
     }
 
     public MediaStream getLocalStream() {
@@ -133,6 +139,11 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
         PeerView peerView = new PeerView(glSurfaceView.getContext(), peer);
 
+        if (peer.isMyself())
+            peerView.setImageLevel(PeerView.LEVEL_PROGRESS);
+        else
+            peerView.setImageLevel(PeerView.LEVEL_READY_TO_CONNECT);
+
         RelativeLayout.LayoutParams params =
                 new RelativeLayout.LayoutParams(
                         displayLayout.right - displayLayout.left,
@@ -144,55 +155,6 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         peerView.setLayoutParams(params);
 
         return peerView;
-    }
-
-    @Override
-    public void onAddStream(EAPeer peer, MediaStream mediaStream) {
-
-        VideoRenderer renderer = new VideoRenderer(remoteRenders.get(peer.getUserId()));
-        PeerView peerView = peerViews.get(peer.getUserId());
-
-        try {
-            if (mediaStream.videoTracks.size() == 0) return;
-            peerView.setImageLevel(0);
-            mediaStream.videoTracks.get(0).addRenderer(renderer);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        Log.d(Constants.TAG, "renderer added to mediaStream for peer: " + peer.getUserId());
-    }
-
-    @Override
-    public void onRemoveStream(String userId, MediaStream mediaStream) {
-
-        //TODO consider use cases
-
-    }
-
-    @Override
-    public void onPeerAdded(EAPeer peer) {
-
-        createImageRenderer(peer);
-    }
-
-    @Override
-    public void onPeerRemoved(EAPeer peer) {
-
-        String id = peer.getUserId();
-
-        remoteRenders.remove(id);
-        PeerView peerView = peerViews.get(id);
-        mRoot.removeView(peerView);
-        peerViews.remove(id);
-    }
-
-    private void addRendererToLocalStream(VideoRenderer.Callbacks renderer) {
-
-        if (localStream.videoTracks.size() != 0)
-            localStream.videoTracks.get(0).addRenderer(new VideoRenderer(renderer));
-
-        Log.d(Constants.TAG, "local renderer is created and added to local media stream");
     }
 
     private void createImageRenderer(EAPeer peer) {
@@ -235,38 +197,75 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         peerViews.put(peer.getUserId(), peerView);
 
         mRoot.addView(peerView);
-        //starts showing local media stream
-        if (peer.isMyself())
-            addRendererToLocalStream(renderer);
 
-        Log.d(Constants.TAG, "renderer is created for peer: " + peer.getUserId());
+        //starts showing local media stream
+        if (peer.isMyself()) {
+            onAddStream(peer, localStream);
+            Log.d(Constants.TAG, "local renderer is created and added to local media stream");
+        }
+
+//        Log.d(Constants.TAG, "renderer and view is created for peer: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
+    }
+
+    @Override
+    public void onAddStream(EAPeer peer, MediaStream mediaStream) {
+
+        VideoRenderer renderer = new VideoRenderer(remoteRenders.get(peer.getUserId()));
+        PeerView peerView = peerViews.get(peer.getUserId());
+
+        try {
+            if (mediaStream.videoTracks.size() == 0) return;
+            peerView.setImageLevel(PeerView.LEVEL_FRAME);
+            mediaStream.videoTracks.get(0).addRenderer(renderer);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        Log.d(Constants.TAG, "renderer added to stream for peer: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
+    }
+
+    @Override
+    public void onRemoveStream(String userId, MediaStream mediaStream) {
+
+        //TODO consider use cases
+
+    }
+
+    @Override
+    public void onPeerAdded(EAPeer peer) {
+
+        createImageRenderer(peer);
+        Log.d(Constants.TAG, "peer added: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
+    }
+
+    @Override
+    public void onPeerRemoved(EAPeer peer) {
+
+        String id = peer.getUserId();
+
+        remoteRenders.remove(id);
+        PeerView peerView = peerViews.get(id);
+        mRoot.removeView(peerView);
+        peerViews.remove(id);
+
+        Log.d(Constants.TAG, "peer removed: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
     }
 
     public void onPause() {
-        glSurfaceView.onPause();
-        localVideoSource.stop();
+        try {
+            glSurfaceView.onPause();
+            localVideoSource.stop();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void onResume() {
-        glSurfaceView.onResume();
-        localVideoSource.restart();
-    }
-
-    @Override
-    public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-
-    }
-
-    @Override
-    public void onSurfaceChanged(GL10 gl, int width, int height) {
-
-        glWidth = width;
-        glHeight = height;
-
-    }
-
-    @Override
-    public void onDrawFrame(GL10 gl) {
-
+        try {
+            glSurfaceView.onResume();
+            localVideoSource.restart();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

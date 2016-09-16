@@ -9,13 +9,22 @@ public class PeersHashMap extends HashMap<String, EAPeer> {
 
     PeersEvents observer;
 
+    public PeersHashMap() {
+        super();
+    }
+
     public PeersHashMap(PeersEvents observer) {
         super();
         this.observer = observer;
     }
+
     public interface PeersEvents {
         void onPeerAdded(EAPeer value);
         void onPeerRemoved(EAPeer value);
+    }
+
+    public void setObserver(PeersEvents observer) {
+        this.observer = observer;
     }
 
     @Override

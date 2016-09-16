@@ -22,6 +22,10 @@ import android.widget.TextView;
  */
 public class PeerView extends RelativeLayout {
 
+    public final static int LEVEL_FRAME = 0;
+    public final static int LEVEL_PROGRESS = 1;
+    public final static int LEVEL_READY_TO_CONNECT = 2;
+
     TextView peerName;
     ImageView display;
     EAPeer peer;
@@ -53,18 +57,20 @@ public class PeerView extends RelativeLayout {
         peerName = (TextView) findViewById(R.id.peer_name);
         display = (ImageView) findViewById(R.id.display);
 
-        if (!peer.isMyself()){
+        if (peer.isMyself()) {
             peerName.setText("me");
-
-            setOnClickListener(v -> {
-                peer.createOffer();
-                display.setImageLevel(1);
-            });
-
         } else {
             peerName.setText(peer.getUserName());
+            setOnClickListener(listener);
         }
     }
+
+    private OnClickListener listener = v -> {
+
+        peer.createOffer();
+        display.setImageLevel(LEVEL_PROGRESS);
+
+    };
 
     public int getPeerNameHeight(){
         return peerNameHeight;

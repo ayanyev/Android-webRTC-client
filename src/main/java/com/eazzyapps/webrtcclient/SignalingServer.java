@@ -234,6 +234,8 @@ public class SignalingServer {
             message.setSource(userId);
             wsClient.send(message.toString());
         }
+
+        Log.d(Constants.TAG, message.type + " msg sent on thread: " + Thread.currentThread().getName());
     }
 
     public boolean isConnected() {
