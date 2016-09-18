@@ -18,7 +18,6 @@ import org.webrtc.VideoTrack;
 import java.util.HashMap;
 
 import rx.Observable;
-import rx.Subscriber;
 
 /**
  * Created by Александр on 27.08.2016.
@@ -32,8 +31,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
     private GLSurfaceView glSurfaceView;
     private VideoSource localVideoSource;
-    private HashMap<String, VideoRenderer.Callbacks> remoteRenders;
-    private HashMap<String, PeerView> peerViews;
+    private HashMap<String, EAPeerView> peerViews;
     private PeerConnectionFactory pcFactory;
     private MediaStream localStream;
     private ViewGroup mRoot;
@@ -44,7 +42,6 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     public MediaStreamsHandler() {
 
         this.pcFactory = new PeerConnectionFactory();
-        this.remoteRenders = new HashMap<>();
         this.peerViews = new HashMap<>();
     }
 
@@ -85,7 +82,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
         if (peerViews.size() > 0) {
             Log.d(Constants.TAG, "views resized");
-            for (PeerView view : peerViews.values()) {
+            for (EAPeerView view : peerViews.values()) {
                 view.setSizeAndPosition(glWidth, glHeight);
             }
         }
@@ -126,44 +123,55 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         return localStream;
     }
 
-
-    private void createImageRenderer(EAPeer peer) {
-
-        VideoRenderer.Callbacks renderer;
-        PeerView peerView;
+    private void createPeerView(EAPeer peer) {
 
         int x = 0, y = 0, w = 0, h = 0;
 
-        if (remoteRenders.size() == 0) {
+        if (peerViews.size() == 0) {
             x = 15;
             y = 15;
             w = 30;
             h = 30;
-        } else if (remoteRenders.size() == 1) {
+        } else if (peerViews.size() == 1) {
             x = 55;
             y = 15;
             w = 30;
             h = 30;
-        } else if (remoteRenders.size() == 2) {
+        } else if (peerViews.size() == 2) {
             x = 15;
             y = 55;
             w = 30;
             h = 30;
         }
-        if (remoteRenders.size() == 3) {
+        if (peerViews.size() == 3) {
             x = 55;
             y = 55;
             w = 30;
             h = 30;
         }
 
-        renderer = VideoRendererGui.create(x, y, w, h,
-                VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, true);
-        peerView = createPeerView(peer, x, y, w, h);
+        VideoRenderer renderer;
 
-        remoteRenders.put(peer.getUserId(), renderer);
+        EAPeerView peerView = new EAPeerView(glSurfaceView.getContext(), peer);
+        peerView.setLayoutInPercentage(x, y, w, h);
+        peerView.setSizeAndPosition(glWidth, glHeight);
+        peerView.setPeerName(peer.isMyself() ? "me" : peer.getUserName());
+
+        if (peer.isMyself())
+            peerView.setImageLevel(EAPeerView.LEVEL_PROGRESS);
+        else
+            peerView.setImageLevel(EAPeerView.LEVEL_READY_TO_CONNECT);
+
+        try {
+            renderer = VideoRendererGui.createGui(x, y, w, h,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, true);
+            peerView.setRenderer(renderer);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         peerViews.put(peer.getUserId(), peerView);
-
         mRoot.addView(peerView);
 
         //starts showing local media stream
@@ -175,30 +183,15 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 //        Log.d(Constants.TAG, "renderer and view is created for peer: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
     }
 
-    private PeerView createPeerView(EAPeer peer, int x, int y, int w, int h) {
-
-        PeerView peerView = new PeerView(glSurfaceView.getContext(), peer);
-        peerView.setLayoutInPercentage(x, y, w, h);
-        peerView.setSizeAndPosition(glWidth, glHeight);
-        peerView.setPeerName(peer.isMyself() ? "me" : peer.getUserName());
-        if (peer.isMyself())
-            peerView.setImageLevel(PeerView.LEVEL_PROGRESS);
-        else
-            peerView.setImageLevel(PeerView.LEVEL_READY_TO_CONNECT);
-
-        return peerView;
-    }
-
     @Override
     public void onAddStream(EAPeer peer, MediaStream mediaStream) {
 
-        VideoRenderer renderer = new VideoRenderer(remoteRenders.get(peer.getUserId()));
-        PeerView peerView = peerViews.get(peer.getUserId());
+        EAPeerView peerView = peerViews.get(peer.getUserId());
 
         try {
             if (mediaStream.videoTracks.size() == 0) return;
-            peerView.setImageLevel(PeerView.LEVEL_FRAME);
-            mediaStream.videoTracks.get(0).addRenderer(renderer);
+            peerView.setImageLevel(EAPeerView.LEVEL_FRAME);
+            mediaStream.videoTracks.get(0).addRenderer(peerView.getRenderer());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -216,7 +209,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     @Override
     public void onPeerAdded(EAPeer peer) {
 
-        createImageRenderer(peer);
+        createPeerView(peer);
         Log.d(Constants.TAG, "peer added: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
     }
 
@@ -225,8 +218,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
         String id = peer.getUserId();
 
-        remoteRenders.remove(id);
-        PeerView peerView = peerViews.get(id);
+        EAPeerView peerView = peerViews.get(id);
         mRoot.removeView(peerView);
         peerViews.remove(id);
 
