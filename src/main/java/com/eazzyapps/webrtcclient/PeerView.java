@@ -6,13 +6,10 @@ import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-
-import java.lang.reflect.Constructor;
 
 /**
  * TODO: document your custom view class.
@@ -28,6 +25,8 @@ public class PeerView extends RelativeLayout {
     EAPeer peer;
     int peerNameHeight;
     private Rect layoutInPercentage;
+    private Rect displayLayout;
+    private boolean paramsToBeChanged;
 
     public PeerView(Context context, EAPeer peer) {
         this(context, peer, null, 0);
@@ -41,6 +40,7 @@ public class PeerView extends RelativeLayout {
         super(context, attrs, defStyle);
 
         this.peer = peer;
+        this.paramsToBeChanged = false;
 
         // Load attributes
         final TypedArray a = getContext().obtainStyledAttributes(
@@ -59,36 +59,65 @@ public class PeerView extends RelativeLayout {
             peerName.setText("me");
         } else {
             peerName.setText(peer.getUserName());
-            setOnClickListener(listener);
+            setOnClickListener(viewClickListener);
         }
+
+        // to listen parent's layout pass completed
+        // to set new params and start new layout pass
+        getRootView()
+                .getViewTreeObserver()
+                .addOnGlobalLayoutListener(layoutPassCompletedListener);
     }
 
-    private OnClickListener listener = v -> {
+    private ViewTreeObserver.OnGlobalLayoutListener layoutPassCompletedListener = () -> {
+
+        if (paramsToBeChanged){
+
+            paramsToBeChanged = false;
+            RelativeLayout.LayoutParams params = (LayoutParams) getLayoutParams();
+
+            if (params == null)
+                params = new RelativeLayout.LayoutParams(
+                        displayLayout.right - displayLayout.left,
+                        displayLayout.bottom - displayLayout.top);
+            else {
+                params.width = displayLayout.right - displayLayout.left;
+                params.height = displayLayout.bottom - displayLayout.top;
+            }
+
+            params.leftMargin = displayLayout.left;
+            params.topMargin = displayLayout.top;
+
+            setLayoutParams(params);
+
+            Log.d(Constants.TAG, displayLayout.toString());
+        }
+    };
+
+    private OnClickListener viewClickListener = v -> {
 
         peer.createOffer();
         display.setImageLevel(LEVEL_PROGRESS);
 
     };
 
-    // overload for resizing purpose
-    public void setLayoutFromPercentage(int glWidth, int glHeight) {
-        setLayoutFromPercentage(layoutInPercentage, glWidth, glHeight);
-    }
-
     // overload for creation purpose
-    public void setLayoutFromPercentage(Rect layoutInPercentage, int glWidth, int glHeight) {
+    public void setSizeAndPosition(int glWidth, int glHeight) {
 
-        this.layoutInPercentage = layoutInPercentage;
+        if (layoutInPercentage == null)
+            throw new NullPointerException("Layout parameters in % cannot be null");
 
         // derived from VideoRendererGui
 
-        Rect displayLayout = new Rect();
+        displayLayout = new Rect();
         displayLayout.set(
                 (glWidth * layoutInPercentage.left + 99) / 100,
                 (glHeight * layoutInPercentage.top + 99) / 100,
                 glWidth * layoutInPercentage.right / 100,
                 glHeight * layoutInPercentage.bottom / 100);
         displayLayout.inset(-10, -10);
+
+        paramsToBeChanged = true;
 
 //        float videoAspectRatio = this.rotationDegree % 180 == 0?(float)this.videoWidth / (float)this.videoHeight:(float)this.videoHeight / (float)this.videoWidth;
 //        float minVisibleFraction = convertScalingTypeToVisibleFraction(this.scalingType);
@@ -102,28 +131,6 @@ public class PeerView extends RelativeLayout {
 //        } catch (Exception e) {
 //            e.printStackTrace();
 //        }
-
-        RelativeLayout.LayoutParams params = (LayoutParams) getLayoutParams();
-
-        if (params == null)
-            params = new RelativeLayout.LayoutParams(
-                    displayLayout.right - displayLayout.left,
-                    displayLayout.bottom - displayLayout.top);
-        else {
-            params.width = displayLayout.right - displayLayout.left;
-            params.height = displayLayout.bottom - displayLayout.top;
-        }
-
-        params.leftMargin = displayLayout.left;
-        params.topMargin = displayLayout.top;
-
-        Log.d(Constants.TAG, displayLayout.toString());
-
-        setLayoutParams(params);
-    }
-
-    public int getPeerNameHeight() {
-        return peerNameHeight;
     }
 
     public void setImageLevel(int level) {
@@ -135,8 +142,7 @@ public class PeerView extends RelativeLayout {
         peerName.setText(name);
     }
 
-    public Rect getLayoutInPercentage() {
-        return layoutInPercentage;
+    public void setLayoutInPercentage(int left, int top, int width, int height) {
+        this.layoutInPercentage = new Rect(left, top, Math.min(100, left + width), Math.min(100, top + height));
     }
-
 }

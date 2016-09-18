@@ -1,7 +1,5 @@
 package com.eazzyapps.webrtcclient;
 
-import android.app.Fragment;
-import android.content.pm.PackageManager;
 import android.opengl.GLSurfaceView;
 import android.util.Log;
 
@@ -42,6 +40,9 @@ public class EAWebRTCClient {
     private MediaStreamsHandler streamsHandler;
     private EAPeerConnectionClient pcClient;
 
+    private Subscription wsSubscription;
+    private Observable<Boolean> checkPermissions;
+
     public EAWebRTCClient(EAClientListener listener, String userName) {
 
         this.listener = listener;
@@ -61,24 +62,22 @@ public class EAWebRTCClient {
         // sets default maximum peers number
         this.maxPeersNum = 4;
 
-        // permissions check
-        RxPermissions.getInstance(listener.getListenerContext())
+        checkPermissions = RxPermissions
+                .getInstance(listener.getListenerContext())
                 .request("android.permission.CAMERA",
-                        "android.permission.RECORD_AUDIO")
-                .subscribe(granted -> {
-                    if (granted) {
-
-                        init();
-
-                    } else {
-                        listener.onError("permissions not granted");
-                    }
-                });
+                        "android.permission.RECORD_AUDIO");
     }
 
-    public void init() {
+    public void init(GLSurfaceView glSurfaceView) {
 
         streamsHandler.createLocalMediaStream();
+
+        // wait for VideoRendererGui initialisation
+        streamsHandler.setSurfaceView(glSurfaceView)
+                .subscribe(surfaceIsSet -> {
+                    pcClient.setStreamsHandler(streamsHandler);
+                    peers.setObserver(streamsHandler);
+                });
 
         // if signaling server not valid stop execution here
         if (server == null) {
@@ -106,8 +105,6 @@ public class EAWebRTCClient {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(wsSubscriber);
     }
-
-    private Subscription wsSubscription;
 
     private Subscriber<EAMessage> wsSubscriber = new Subscriber<EAMessage>() {
 
@@ -246,12 +243,20 @@ public class EAWebRTCClient {
 
     public void setGLSurfaceView(GLSurfaceView glSurfaceView) {
 
-        //sets glSurfaceView to be used by VideoRendererGUI
-        streamsHandler.swapGLSurfaceView(glSurfaceView, peers);
-
-        // MediaStreamHandler are now able to observe
-        pcClient.setStreamsHandler(streamsHandler);
-        peers.setObserver(streamsHandler);
+        if (glSurfaceView != null)
+            // init client not before permissions are granted and surface is obtained
+            checkPermissions
+                    .subscribe(
+                            permissionsGranted -> {
+                                if (permissionsGranted) {
+                                    Log.d(Constants.TAG, "permissions granted and surface obtained");
+                                    init(glSurfaceView);
+                                } else {
+                                    listener.onError("permissions not granted");
+                                }
+                            });
+        else
+            listener.onError("GLSurfaceView is null");
     }
 
     public void setMaxPeersNum(int maxPeersNum) {
