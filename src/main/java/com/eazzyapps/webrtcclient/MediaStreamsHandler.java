@@ -1,15 +1,10 @@
 package com.eazzyapps.webrtcclient;
 
-import android.graphics.Point;
 import android.graphics.Rect;
-import android.graphics.YuvImage;
 import android.opengl.GLSurfaceView;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewParent;
-import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 
 import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
@@ -23,14 +18,9 @@ import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
 import java.util.HashMap;
-import java.util.Map;
-
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.opengles.GL;
-import javax.microedition.khronos.opengles.GL10;
 
 import rx.Observable;
-import rx.Subscriber;
+import rx.observables.ConnectableObservable;
 
 /**
  * Created by Александр on 27.08.2016.
@@ -49,10 +39,9 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     private PeerConnectionFactory pcFactory;
     private MediaStream localStream;
     private ViewGroup mRoot;
-    private int glX;
-    private int glY;
-    private int glWidth;
-    private int glHeight;
+    private int glWidth = 0;
+    private int glHeight = 0;
+    Observable<Boolean> surfaceLayoutObservable;
 
     public MediaStreamsHandler() {
 
@@ -69,14 +58,46 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         VideoRendererGui.setView(glSurfaceView,
                 () -> {
 
-                    remoteRenders.clear();
-                    peerViews.clear();
                     mRoot = (ViewGroup) glSurfaceView.getParent();
+                    glWidth = glSurfaceView.getMeasuredWidth();
+                    glHeight = glSurfaceView.getMeasuredHeight();
 
                     if (peers.size() > 0)
                         for (EAPeer peer : peers.values())
                             createImageRenderer(peer);
+
+//                    this.glSurfaceView.addOnLayoutChangeListener(
+//                            (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+//                                Log.d(Constants.TAG, "layout listener called");
+//                                glWidth = v.getMeasuredWidth();
+//                                glHeight = v.getMeasuredHeight();
+//                                resizePeerViews();
+//                            });
+
+                    surfaceLayoutObservable = Observable.create((Observable.OnSubscribe<Boolean>) subscriber ->
+                            this.glSurfaceView.addOnLayoutChangeListener(
+                                    (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                                        glWidth = v.getMeasuredWidth();
+                                        glHeight = v.getMeasuredHeight();
+                                        subscriber.onNext(true);
+                                    }));
+
+                    surfaceLayoutObservable
+                            .skip(2)
+                            .subscribe(surfaceChanged ->
+                                    resizePeerViews()
+                            );
                 });
+    }
+
+    public void resizePeerViews() {
+
+        if (peerViews.size() > 0) {
+            Log.d(Constants.TAG, "views resized");
+            for (PeerView view : peerViews.values()) {
+                view.setLayoutFromPercentage(glWidth, glHeight);
+            }
+        }
     }
 
     public void createLocalMediaStream() {
@@ -116,27 +137,6 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
     private PeerView createPeerView(EAPeer peer, int left, int top, int width, int height) {
 
-        glWidth = glSurfaceView.getMeasuredWidth();
-        glHeight = glSurfaceView.getMeasuredHeight();
-
-        // derived from VideoRendererGui
-        Rect displayLayout = new Rect();
-        Rect layoutInPercentage = new Rect(left, top, Math.min(100, left + width), Math.min(100, top + height));
-
-        displayLayout.set(
-                (glWidth * layoutInPercentage.left + 99) / 100,
-                (glHeight * layoutInPercentage.top + 99) / 100,
-                glWidth * layoutInPercentage.right / 100,
-                glHeight * layoutInPercentage.bottom / 100);
-
-        displayLayout.inset(-10, -10);
-
-//        float videoAspectRatio = this.rotationDegree % 180 == 0?(float)this.videoWidth / (float)this.videoHeight:(float)this.videoHeight / (float)this.videoWidth;
-//        float minVisibleFraction = convertScalingTypeToVisibleFraction(this.scalingType);
-//        Point displaySize = getDisplaySize(minVisibleFraction, videoAspectRatio, this.displayLayout.width(), this.displayLayout.height());
-//        displayLayout.inset((this.displayLayout.width() - displaySize.x) / 2, (this.displayLayout.height() - displaySize.y) / 2);
-
-
         PeerView peerView = new PeerView(glSurfaceView.getContext(), peer);
 
         if (peer.isMyself())
@@ -144,15 +144,8 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         else
             peerView.setImageLevel(PeerView.LEVEL_READY_TO_CONNECT);
 
-        RelativeLayout.LayoutParams params =
-                new RelativeLayout.LayoutParams(
-                        displayLayout.right - displayLayout.left,
-                        displayLayout.bottom - displayLayout.top);
-
-        params.leftMargin = displayLayout.left;
-        params.topMargin = displayLayout.top;
-
-        peerView.setLayoutParams(params);
+        Rect layoutInPercentage = new Rect(left, top, Math.min(100, left + width), Math.min(100, top + height));
+        peerView.setLayoutFromPercentage(layoutInPercentage, glWidth, glHeight);
 
         return peerView;
     }
@@ -268,4 +261,5 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
             e.printStackTrace();
         }
     }
+
 }

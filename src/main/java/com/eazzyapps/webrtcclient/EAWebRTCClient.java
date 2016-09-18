@@ -309,5 +309,4 @@ public class EAWebRTCClient {
         return connected;
     }
 
-
 }
