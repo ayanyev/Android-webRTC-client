@@ -28,7 +28,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     public static final String VIDEO_TRACK_ID = "video";
     public static final String AUDIO_TRACK_ID = "audio";
     public static final String LOCAL_MEDIA_STREAM_ID = "localStream";
-
+    Observable<Boolean> surfaceLayoutObservable;
     private GLSurfaceView glSurfaceView;
     private VideoSource localVideoSource;
     private HashMap<String, EAPeerView> peerViews;
@@ -37,7 +37,6 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     private ViewGroup mRoot;
     private int glWidth = 0;
     private int glHeight = 0;
-    Observable<Boolean> surfaceLayoutObservable;
 
     public MediaStreamsHandler() {
 
