@@ -31,7 +31,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     Observable<Boolean> surfaceLayoutObservable;
     private GLSurfaceView glSurfaceView;
     private VideoSource localVideoSource;
-    private HashMap<String, EAPeerView> peerViews;
+    private HashMap<String, PeerView> peerViews;
     private PeerConnectionFactory pcFactory;
     private MediaStream localStream;
     private ViewGroup mRoot;
@@ -81,7 +81,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
         if (peerViews.size() > 0) {
             Log.d(Constants.TAG, "views resized");
-            for (EAPeerView view : peerViews.values()) {
+            for (PeerView view : peerViews.values()) {
                 view.setSizeAndPosition(glWidth, glHeight);
             }
         }
@@ -151,15 +151,15 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
         VideoRenderer renderer;
 
-        EAPeerView peerView = new EAPeerView(glSurfaceView.getContext(), peer);
+        PeerView peerView = new PeerView(glSurfaceView.getContext(), peer);
         peerView.setLayoutInPercentage(x, y, w, h);
         peerView.setSizeAndPosition(glWidth, glHeight);
         peerView.setPeerName(peer.isMyself() ? "me" : peer.getUserName());
 
         if (peer.isMyself())
-            peerView.setImageLevel(EAPeerView.LEVEL_PROGRESS);
+            peerView.setImageLevel(PeerView.LEVEL_PROGRESS);
         else
-            peerView.setImageLevel(EAPeerView.LEVEL_READY_TO_CONNECT);
+            peerView.setImageLevel(PeerView.LEVEL_READY_TO_CONNECT);
 
         try {
             renderer = VideoRendererGui.createGui(x, y, w, h,
@@ -185,11 +185,11 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
     @Override
     public void onAddStream(EAPeer peer, MediaStream mediaStream) {
 
-        EAPeerView peerView = peerViews.get(peer.getUserId());
+        PeerView peerView = peerViews.get(peer.getUserId());
 
         try {
             if (mediaStream.videoTracks.size() == 0) return;
-            peerView.setImageLevel(EAPeerView.LEVEL_FRAME);
+            peerView.setImageLevel(PeerView.LEVEL_FRAME);
             mediaStream.videoTracks.get(0).addRenderer(peerView.getRenderer());
         } catch (Exception e) {
             e.printStackTrace();
@@ -217,7 +217,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
         String id = peer.getUserId();
 
-        EAPeerView peerView = peerViews.get(id);
+        PeerView peerView = peerViews.get(id);
         mRoot.removeView(peerView);
         peerViews.remove(id);
 
