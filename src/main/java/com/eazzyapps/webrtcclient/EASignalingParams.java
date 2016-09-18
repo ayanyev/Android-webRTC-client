@@ -1,24 +1,34 @@
 package com.eazzyapps.webrtcclient;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnection;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import rx.Observable;
+import rx.schedulers.Schedulers;
 
 /**
  * Created by Александр on 26.07.2016.
  */
 public class EASignalingParams {
 
-    public List<PeerConnection.IceServer> iceServers;
     public final MediaConstraints pcConstraints;
     public final MediaConstraints videoConstraints;
     public final MediaConstraints audioConstraints;
-
+    public List<PeerConnection.IceServer> iceServers;
 
 
     public EASignalingParams(
@@ -108,13 +118,47 @@ public class EASignalingParams {
     }
 
     public static Observable<List<PeerConnection.IceServer>> getXirSysIceServers() {
-        List<PeerConnection.IceServer> servers;
-        try {
-            servers = new EAXirSysRequest().execute().get();
-        } catch (InterruptedException | ExecutionException e) {
-            servers = defaultIceServers();
-        }
-        return Observable.just(servers);
+        return Observable.create((Observable.OnSubscribe<List<PeerConnection.IceServer>>) subscriber -> {
+
+            List<PeerConnection.IceServer> servers = new ArrayList<>();
+
+            RequestBody body = new FormBody.Builder()
+                    .add("ident", "eazzyapps")
+                    .add("secret", "55ccb5b6-3932-11e6-b1b1-a424c15a6e73")
+                    .add("domain", "eazzyapps.com")
+                    .add("application", "default")
+                    .add("room", "default")
+                    .add("security", "1")
+                    .build();
+
+            Request request = new Request.Builder()
+                    .url("https://service.xirsys.com/ice")
+                    .post(body)
+                    .build();
+
+            try {
+                Response response = new OkHttpClient().newCall(request).execute();
+                JSONTokener tokener = new JSONTokener(response.body().string());
+                JSONObject json = new JSONObject(tokener);
+                if (json.isNull("e")) {
+                    JSONArray iceServers = json.getJSONObject("d").getJSONArray("iceServers");
+                    for (int i = 0; i < iceServers.length(); i++) {
+                        JSONObject srv = iceServers.getJSONObject(i);
+                        PeerConnection.IceServer is;
+                        if (srv.has("username"))
+                            is = new PeerConnection.IceServer(srv.getString("url"),
+                                    srv.getString("username"), srv.getString("credential"));
+                        else
+                            is = new PeerConnection.IceServer(srv.getString("url"));
+                        servers.add(is);
+                    }
+                }
+            } catch (IOException | JSONException e) {
+                subscriber.onError(e);
+            }
+            subscriber.onNext(servers);
+            subscriber.onCompleted();
+        });
     }
 
     public static List<PeerConnection.IceServer> defaultIceServers() {
