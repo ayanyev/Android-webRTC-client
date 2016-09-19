@@ -42,70 +42,6 @@ public class EAWebRTCClient {
 
     private Subscription wsSubscription;
     private Observable<Boolean> checkPermissions;
-
-    public EAWebRTCClient(EAClientListener listener, String userName) {
-
-        this.listener = listener;
-        this.connected = false;
-        this.userName = userName;
-        try {
-            this.server = new SignalingServer(Constants.herokuServerURL);
-        } catch (MalformedURLException e) {
-            this.server = null;
-        }
-        this.pcClient = EAPeerConnectionClient.getInstance();
-        this.streamsHandler = new MediaStreamsHandler();
-        this.signalingParams = new EASignalingParams();
-        // params with default values to be available for MediaStreamHandler
-        this.pcClient.setParams(signalingParams);
-        this.peers = new PeersHashMap();
-        // sets default maximum peers number
-        this.maxPeersNum = 4;
-
-        checkPermissions = RxPermissions
-                .getInstance(listener.getListenerContext())
-                .request("android.permission.CAMERA",
-                        "android.permission.RECORD_AUDIO");
-    }
-
-    public void init(GLSurfaceView glSurfaceView) {
-
-        streamsHandler.createLocalMediaStream();
-
-        // wait for VideoRendererGui initialisation
-        streamsHandler.setSurfaceView(glSurfaceView)
-                .subscribe(surfaceIsSet -> {
-                    pcClient.setStreamsHandler(streamsHandler);
-                    peers.setObserver(streamsHandler);
-                });
-
-        // if signaling server not valid stop execution here
-        if (server == null) {
-            if (listener != null)
-                listener.onError("server url is not valid");
-            return;
-        }
-
-        wsSubscription = Observable
-                .zip(
-                        server.connectToServer(Constants.apiKey, userName),
-                        EASignalingParams.getXirSysIceServers(),
-                        (userId, servers) -> {
-
-                            this.userId = userId;
-
-                            // servers instead of default
-                            signalingParams.swapIceServers(servers);
-                            pcClient.setMessenger(server);
-
-                            return true;
-                        })
-                .flatMap(isReady -> server.establishWebSocketConnection(userId, userName))
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(wsSubscriber);
-    }
-
     private Subscriber<EAMessage> wsSubscriber = new Subscriber<EAMessage>() {
 
 
@@ -213,8 +149,6 @@ public class EAWebRTCClient {
                     listener.onPeerLeave(peers.get(message.source));
                     peers.remove(message.source);
 
-                    Log.d(Constants.TAG, "peer removed: " + message.source + " thread: " + Thread.currentThread().getName());
-
                     return;
 
                 case TYPE_NEW_USER:
@@ -223,8 +157,6 @@ public class EAWebRTCClient {
                             new EAPeer(message.source, message.payload));
 
                     listener.onNewPeer();
-
-                    Log.d(Constants.TAG, "peer added: " + message.source + " thread: " + Thread.currentThread().getName());
             }
         }
 
@@ -240,6 +172,69 @@ public class EAWebRTCClient {
             listener.onError(e.getMessage());
         }
     };
+
+    public EAWebRTCClient(EAClientListener listener, String userName) {
+
+        this.listener = listener;
+        this.connected = false;
+        this.userName = userName;
+        try {
+            this.server = new SignalingServer(Constants.herokuServerURL);
+        } catch (MalformedURLException e) {
+            this.server = null;
+        }
+        this.pcClient = EAPeerConnectionClient.getInstance();
+        this.streamsHandler = new MediaStreamsHandler();
+        this.signalingParams = new EASignalingParams();
+        // params with default values to be available for MediaStreamHandler
+        this.pcClient.setParams(signalingParams);
+        this.peers = new PeersHashMap();
+        // sets default maximum peers number
+        this.maxPeersNum = 4;
+
+        checkPermissions = RxPermissions
+                .getInstance(listener.getListenerContext())
+                .request("android.permission.CAMERA",
+                        "android.permission.RECORD_AUDIO");
+    }
+
+    public void init(GLSurfaceView glSurfaceView) {
+
+        streamsHandler.createLocalMediaStream();
+
+        // wait for VideoRendererGui initialisation
+        streamsHandler.setSurfaceView(glSurfaceView)
+                .subscribe(surfaceIsSet -> {
+                    pcClient.setStreamsHandler(streamsHandler);
+                    peers.setObserver(streamsHandler);
+                });
+
+        // if signaling server not valid stop execution here
+        if (server == null) {
+            if (listener != null)
+                listener.onError("server url is not valid");
+            return;
+        }
+
+        wsSubscription = Observable
+                .zip(
+                        server.connectToServer(Constants.apiKey, userName),
+                        EASignalingParams.getXirSysIceServers(),
+                        (userId, servers) -> {
+
+                            this.userId = userId;
+
+                            // servers instead of default
+                            signalingParams.swapIceServers(servers);
+                            pcClient.setMessenger(server);
+
+                            return true;
+                        })
+                .flatMap(isReady -> server.establishWebSocketConnection(userId, userName))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(wsSubscriber);
+    }
 
     public void setGLSurfaceView(GLSurfaceView glSurfaceView) {
 
@@ -267,6 +262,7 @@ public class EAWebRTCClient {
 
         server.discoverPeers()
                 .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
                 .map(peersOnline -> {
                     for (String p : peersOnline) {
 
@@ -278,7 +274,6 @@ public class EAWebRTCClient {
                     }
                     return peers;
                 })
-                .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                         peers -> {
                             if (listener != null) listener.onPeersDiscovered(peers);

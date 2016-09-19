@@ -1,9 +1,6 @@
 package com.eazzyapps.webrtcclient;
 
 import android.content.Context;
-
-import org.webrtc.MediaStream;
-
 import java.util.HashMap;
 
 /**

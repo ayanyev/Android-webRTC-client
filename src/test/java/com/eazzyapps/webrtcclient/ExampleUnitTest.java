@@ -26,8 +26,8 @@ public class ExampleUnitTest {
                 true,  // Hardware Acceleration Enabled
                 null); // Render EGL Context
 
-        EAWebRTCClient client = new EAWebRTCClient("testUser");
-        client.init(null);
+//        EAWebRTCClient client = new EAWebRTCClient("testUser");
+//        client.init(null);
     }
 
     @Test(timeout = 3000)

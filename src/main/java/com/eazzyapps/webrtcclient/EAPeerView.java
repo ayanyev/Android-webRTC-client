@@ -13,6 +13,10 @@ import android.widget.TextView;
 
 import org.webrtc.VideoRenderer;
 
+import rx.Observable;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action;
+
 /**
  * TODO: document your custom view class.
  */
@@ -134,12 +138,17 @@ public class EAPeerView extends RelativeLayout {
     }
 
     public void setImageLevel(int level) {
-
-        display.setImageLevel(level);
+        Observable.just(level)
+                .doOnNext(l -> display.setImageLevel(l))
+                .subscribeOn(AndroidSchedulers.mainThread())
+                .subscribe();
     }
 
     public void setPeerName(String name) {
-        peerName.setText(name);
+        Observable.just(name)
+                .doOnNext(n -> peerName.setText(n))
+                .subscribeOn(AndroidSchedulers.mainThread())
+                .subscribe();
     }
 
     public void setLayoutInPercentage(int left, int top, int width, int height) {
@@ -153,4 +162,10 @@ public class EAPeerView extends RelativeLayout {
     public void setRenderer(VideoRenderer renderer) {
         this.renderer = renderer;
     }
+
+//    @Override
+//    protected void onDetachedFromWindow() {
+//        super.onDetachedFromWindow();
+//        renderer.dispose();
+//    }
 }

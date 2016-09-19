@@ -149,7 +149,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
             h = 30;
         }
 
-        VideoRenderer renderer;
+        VideoRenderer.Callbacks renderer;
 
         EAPeerView peerView = new EAPeerView(glSurfaceView.getContext(), peer);
         peerView.setLayoutInPercentage(x, y, w, h);
@@ -162,9 +162,9 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
             peerView.setImageLevel(EAPeerView.LEVEL_READY_TO_CONNECT);
 
         try {
-            renderer = VideoRendererGui.createGui(x, y, w, h,
+            renderer = VideoRendererGui.create(x, y, w, h,
                     VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, true);
-            peerView.setRenderer(renderer);
+            peerView.setRenderer(new VideoRenderer(renderer));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -191,17 +191,17 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
             if (mediaStream.videoTracks.size() == 0) return;
             peerView.setImageLevel(EAPeerView.LEVEL_FRAME);
             mediaStream.videoTracks.get(0).addRenderer(peerView.getRenderer());
+            Log.d(Constants.TAG, "renderer added to stream for peer: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.d(Constants.TAG, "renderer NOT added to stream for peer: " + peer.getUserId() + " error: " + e.getMessage());
         }
-
-        Log.d(Constants.TAG, "renderer added to stream for peer: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
     }
 
     @Override
     public void onRemoveStream(String userId, MediaStream mediaStream) {
 
         //TODO consider use cases
+        Log.d(Constants.TAG, "media stream removed");
 
     }
 
@@ -218,6 +218,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         String id = peer.getUserId();
 
         EAPeerView peerView = peerViews.get(id);
+//        peerView.getRenderer().dispose();
         mRoot.removeView(peerView);
         peerViews.remove(id);
 
