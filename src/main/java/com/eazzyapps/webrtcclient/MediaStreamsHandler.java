@@ -6,9 +6,11 @@ import android.view.ViewGroup;
 
 import org.webrtc.AudioSource;
 import org.webrtc.AudioTrack;
+import org.webrtc.CameraEnumerationAndroid;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
 import org.webrtc.PeerConnectionFactory;
+import org.webrtc.RendererCommon;
 import org.webrtc.VideoCapturerAndroid;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRendererGui;
@@ -94,9 +96,9 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         MediaConstraints audioConstraints = pcClient.params.audioConstraints;
 
         // Returns the number of cams & front/back face device name
-        int camNumber = VideoCapturerAndroid.getDeviceCount();
-        String frontFacingCam = VideoCapturerAndroid.getNameOfFrontFacingDevice();
-        String backFacingCam = VideoCapturerAndroid.getNameOfBackFacingDevice();
+        int camNumber = CameraEnumerationAndroid.getDeviceCount();
+        String frontFacingCam = CameraEnumerationAndroid.getNameOfFrontFacingDevice();
+        String backFacingCam = CameraEnumerationAndroid.getNameOfBackFacingDevice();
 
         // Creates a VideoCapturerAndroid instance for the device name
         VideoCapturerAndroid capturer = (VideoCapturerAndroid) VideoCapturerAndroid.create(frontFacingCam);
@@ -163,7 +165,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
 
         try {
             renderer = VideoRendererGui.create(x, y, w, h,
-                    VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, true);
+                    RendererCommon.ScalingType.SCALE_ASPECT_FILL, true);
             peerView.setRenderer(new VideoRenderer(renderer));
 
         } catch (Exception e) {

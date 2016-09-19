@@ -19,12 +19,12 @@ public class ExampleUnitTest {
     @Before
     public void runBefore(){
 
-        PeerConnectionFactory.initializeAndroidGlobals(
+/*        PeerConnectionFactory.initializeAndroidGlobals(
                 this,  // Context
                 true,  // Audio Enabled
                 true,  // Video Enabled
                 true,  // Hardware Acceleration Enabled
-                null); // Render EGL Context
+                null); // Render EGL Context*/
 
 //        EAWebRTCClient client = new EAWebRTCClient("testUser");
 //        client.init(null);
