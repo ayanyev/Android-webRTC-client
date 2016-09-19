@@ -18,8 +18,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
+import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import rx.Observable;
 import rx.Subscription;
@@ -31,10 +33,15 @@ import rx.schedulers.Schedulers;
 public class SignalingServer {
 
     private final OkHttpClient client;
-    private WebSocketClient wsClient;
     boolean connected;
     String userId;
     URL serverUrl;
+    Observable<EAMessage> heartBeat = Observable
+            .interval(45, TimeUnit.SECONDS)
+            .map(aLong -> new EAMessage(EAMessage.TYPE_HEARTBEAT, null, null))
+            .subscribeOn(Schedulers.newThread());
+    Subscription heartBeatSubscription;
+    private WebSocketClient wsClient;
 
     public SignalingServer(String urlString) throws MalformedURLException {
 
@@ -88,13 +95,6 @@ public class SignalingServer {
                         }
                 );
     }
-
-    Observable<EAMessage> heartBeat = Observable
-            .interval(45, TimeUnit.SECONDS)
-            .map(aLong -> new EAMessage(EAMessage.TYPE_HEARTBEAT, null, null))
-            .subscribeOn(Schedulers.newThread());
-
-    Subscription heartBeatSubscription;
 
     public Observable<EAMessage> establishWebSocketConnection(String userId, String userName) {
 
