@@ -299,6 +299,8 @@ public class EAWebRTCClient {
         // MediaStreamHandler not able to observe until activity is recreated
         pcClient.setStreamsHandler(null);
         peers.setObserver(null);
+
+        streamsHandler.onDestroy();
     }
 
     public HashMap<String, EAPeer> getPeers() {

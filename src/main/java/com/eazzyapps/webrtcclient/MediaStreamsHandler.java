@@ -166,7 +166,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         try {
             renderer = VideoRendererGui.create(x, y, w, h,
                     RendererCommon.ScalingType.SCALE_ASPECT_FILL, true);
-            peerView.setRenderer(new VideoRenderer(renderer));
+            peerView.setRenderer(renderer);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -192,7 +192,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         try {
             if (mediaStream.videoTracks.size() == 0) return;
             peerView.setImageLevel(EAPeerView.LEVEL_FRAME);
-            mediaStream.videoTracks.get(0).addRenderer(peerView.getRenderer());
+            mediaStream.videoTracks.get(0).addRenderer(new VideoRenderer(peerView.getRenderer()));
             Log.d(Constants.TAG, "renderer added to stream for peer: " + peer.getUserId() + " on thread: " + Thread.currentThread().getName());
         } catch (Exception e) {
             Log.d(Constants.TAG, "renderer NOT added to stream for peer: " + peer.getUserId() + " error: " + e.getMessage());
@@ -220,7 +220,7 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         String id = peer.getUserId();
 
         EAPeerView peerView = peerViews.get(id);
-//        peerView.getRenderer().dispose();
+        VideoRendererGui.remove(peerView.getRenderer());
         mRoot.removeView(peerView);
         peerViews.remove(id);
 
@@ -245,4 +245,8 @@ public class MediaStreamsHandler implements MediaStreamsObserver, PeersHashMap.P
         }
     }
 
+    public void onDestroy() {
+
+        VideoRendererGui.dispose();
+    }
 }

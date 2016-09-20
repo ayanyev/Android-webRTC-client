@@ -29,7 +29,7 @@ public class EAPeerView extends RelativeLayout {
     TextView peerName;
     ImageView display;
     EAPeer peer;
-    private VideoRenderer renderer;
+    private VideoRenderer.Callbacks renderer;
     private Rect layoutInPercentage;
     private Rect displayLayout;
     private boolean paramsToBeChanged;
@@ -155,11 +155,11 @@ public class EAPeerView extends RelativeLayout {
         this.layoutInPercentage = new Rect(left, top, Math.min(100, left + width), Math.min(100, top + height));
     }
 
-    public VideoRenderer getRenderer() {
+    public VideoRenderer.Callbacks getRenderer() {
         return renderer;
     }
 
-    public void setRenderer(VideoRenderer renderer) {
+    public void setRenderer(VideoRenderer.Callbacks renderer) {
         this.renderer = renderer;
     }
 
